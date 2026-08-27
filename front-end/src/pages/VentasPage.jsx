@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ShoppingBag, Plus, Minus, Trash2, CreditCard, Banknote, Search, User, Truck, MapPin, Percent, Edit2, Check, X, Package } from 'lucide-react';
+import { ShoppingBag, Plus, Minus, Trash2, CreditCard, Banknote, Search, User, Truck, MapPin, Percent, Edit2, Check, X, Package, Calendar } from 'lucide-react';
 
 const VentasPage = () => {
   const [productos, setProductos] = useState([]);
@@ -9,6 +9,12 @@ const VentasPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   
+  // Helper para datetime-local
+  const getLocalDatetimeString = (d = new Date()) => {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   // Estado de la venta actual
   const [clienteSeleccionado, setClienteSeleccionado] = useState('');
   const [metodoPago, setMetodoPago] = useState('Efectivo');
@@ -20,6 +26,10 @@ const VentasPage = () => {
   const [searchCliente, setSearchCliente] = useState('');
   const [isClienteDropdownOpen, setIsClienteDropdownOpen] = useState(false);
   
+  // Estado de Fecha personalizada
+  const [fechaVenta, setFechaVenta] = useState(getLocalDatetimeString());
+  const [usarFechaPersonalizada, setUsarFechaPersonalizada] = useState(false);
+
   // Estado Logística
   const [tipoEnvio, setTipoEnvio] = useState('Envio a Domicilio');
   const [costoEnvio, setCostoEnvio] = useState(0);
@@ -211,6 +221,7 @@ const VentasPage = () => {
       total: totalVenta,
       metodoPago,
       cuentaDestino,
+      fecha: usarFechaPersonalizada && fechaVenta ? new Date(fechaVenta) : new Date(),
       logistica: {
         tipoEnvio,
         costoEnvio: costoEnvioEfectivo,
@@ -234,6 +245,8 @@ const VentasPage = () => {
       setDescuentoTipo('ninguno');
       setDescuentoValor('');
       setEditandoPrecio(null);
+      setUsarFechaPersonalizada(false);
+      setFechaVenta(getLocalDatetimeString());
       
       // Recargar productos para actualizar stock
       const prodRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/productos`);
@@ -630,6 +643,38 @@ const VentasPage = () => {
                     <span className="text-xs font-bold text-emerald-600 whitespace-nowrap">- Bs. {montoDescuento.toFixed(2)}</span>
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* ── Fecha de la Venta ── */}
+            <div className="mb-4 bg-pink-50/70 p-3 rounded-xl border border-pink-100">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <Calendar size={14} className="text-kitty-pink" /> Fecha de Venta
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nuevoEstado = !usarFechaPersonalizada;
+                    setUsarFechaPersonalizada(nuevoEstado);
+                    if (nuevoEstado) setFechaVenta(getLocalDatetimeString());
+                  }}
+                  className="text-xs font-semibold text-kitty-pink hover:underline"
+                >
+                  {usarFechaPersonalizada ? 'Usar fecha actual' : 'Cambiar fecha'}
+                </button>
+              </div>
+              {usarFechaPersonalizada ? (
+                <input
+                  type="datetime-local"
+                  value={fechaVenta}
+                  onChange={(e) => setFechaVenta(e.target.value)}
+                  className="w-full bg-white border border-pink-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-kitty-pink"
+                />
+              ) : (
+                <p className="text-xs text-gray-500 font-medium">
+                  Hoy (Automática al momento de cobrar)
+                </p>
               )}
             </div>
 

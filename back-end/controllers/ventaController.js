@@ -6,7 +6,8 @@ import Inventario from '../models/Inventario.js';
 
 export const registrarVenta = async (req, res) => {
   try {
-    const { cliente, productos, total, metodoPago, cuentaDestino, logistica, descuento, subtotalProductos } = req.body;
+    const { cliente, productos, total, metodoPago, cuentaDestino, logistica, descuento, subtotalProductos, fecha } = req.body;
+    const fechaVenta = fecha ? new Date(fecha) : new Date();
 
     if (!productos || productos.length === 0) {
       return res.status(400).json({ message: 'La venta debe tener al menos un producto' });
@@ -50,7 +51,8 @@ export const registrarVenta = async (req, res) => {
       descuento: descuento || { tipo: 'ninguno', valor: 0, montoAplicado: 0 },
       total,
       metodoPago,
-      cuentaDestino
+      cuentaDestino,
+      fecha: fechaVenta
     });
 
     const ventaGuardada = await nuevaVenta.save();
@@ -66,7 +68,8 @@ export const registrarVenta = async (req, res) => {
         producto: item.producto,
         tipoMovimiento: 'Salida',
         cantidad: item.cantidad,
-        motivo: `Venta #${ventaGuardada._id.toString().slice(-6).toUpperCase()}`
+        motivo: `Venta #${ventaGuardada._id.toString().slice(-6).toUpperCase()}`,
+        fecha: fechaVenta
       });
       await movInventario.save();
     }
@@ -80,7 +83,8 @@ export const registrarVenta = async (req, res) => {
       descripcion: `Venta registrada por ${metodoPago}`,
       referenciaId: ventaGuardada._id,
       referenciaModelo: 'Venta',
-      metodoPago: metodoPago
+      metodoPago: metodoPago,
+      fecha: fechaVenta
     });
     await nuevoIngreso.save();
 
@@ -216,6 +220,49 @@ export const devolverProductoVenta = async (req, res) => {
       referenciaModelo: 'Venta'
     });
     await devolucionFinanzas.save();
+
+    res.status(200).json(venta);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const actualizarFechaVenta = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fecha } = req.body;
+
+    if (!fecha) {
+      return res.status(400).json({ message: 'La fecha es obligatoria' });
+    }
+
+    const nuevaFecha = new Date(fecha);
+    if (isNaN(nuevaFecha.getTime())) {
+      return res.status(400).json({ message: 'Formato de fecha inválido' });
+    }
+
+    const venta = await Venta.findByIdAndUpdate(
+      id,
+      { fecha: nuevaFecha },
+      { new: true }
+    ).populate('cliente').populate('productos.producto');
+
+    if (!venta) {
+      return res.status(404).json({ message: 'Venta no encontrada' });
+    }
+
+    // Sincronizar fecha en Finanzas
+    await Finanzas.updateMany(
+      { referenciaId: id, referenciaModelo: 'Venta' },
+      { fecha: nuevaFecha }
+    );
+
+    // Sincronizar fecha en Inventario
+    const ventaCodigo = id.toString().slice(-6).toUpperCase();
+    await Inventario.updateMany(
+      { motivo: new RegExp(`Venta #${ventaCodigo}`, 'i') },
+      { fecha: nuevaFecha }
+    );
 
     res.status(200).json(venta);
   } catch (error) {

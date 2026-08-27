@@ -21,6 +21,8 @@ const ReportesPage = () => {
   const [filtroInventario, setFiltroInventario] = useState({ fechaInicio: null, fechaFin: null, tipo: '', productoBusqueda: '' });
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
   const [compraSeleccionada, setCompraSeleccionada] = useState(null);
+  const [ventaParaEditarFecha, setVentaParaEditarFecha] = useState(null);
+  const [nuevaFechaVenta, setNuevaFechaVenta] = useState('');
 
   const fetchData = async () => {
     try {
@@ -44,6 +46,30 @@ const ReportesPage = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const abrirModalEditarFecha = (v) => {
+    setVentaParaEditarFecha(v);
+    const d = new Date(v.fecha);
+    const pad = (n) => String(n).padStart(2, '0');
+    const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setNuevaFechaVenta(formatted);
+  };
+
+  const handleGuardarNuevaFecha = async (e) => {
+    e.preventDefault();
+    if (!nuevaFechaVenta) return;
+    try {
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/ventas/${ventaParaEditarFecha._id}/fecha`, {
+        fecha: new Date(nuevaFechaVenta)
+      });
+      alert("¡Fecha de la venta actualizada con éxito! 🗓️✨");
+      setVentaParaEditarFecha(null);
+      fetchData();
+    } catch (error) {
+      console.error("Error al actualizar la fecha:", error);
+      alert(error.response?.data?.message || "Error al actualizar la fecha.");
+    }
+  };
 
   const handleAnularCompra = async (id) => {
     if (window.confirm("¿Estás seguro de ANULAR esta compra? Se descontará el stock ingresado y se devolverá el dinero a la caja como una devolución.")) {
@@ -708,9 +734,22 @@ const ReportesPage = () => {
                       </td>
                       <td className="p-5 text-center">
                         {v.estado !== 'Anulada' && (
-                          <button onClick={() => handleAnularVenta(v._id)} className="p-2 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all" title="Anular Venta">
-                            <RotateCcw size={16} />
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button 
+                              onClick={() => abrirModalEditarFecha(v)} 
+                              className="p-2 bg-pink-50 text-kitty-pink rounded-lg hover:bg-kitty-pink hover:text-white transition-all" 
+                              title="Cambiar Fecha de Venta"
+                            >
+                              <Calendar size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleAnularVenta(v._id)} 
+                              className="p-2 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white transition-all" 
+                              title="Anular Venta"
+                            >
+                              <RotateCcw size={16} />
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -911,6 +950,58 @@ const ReportesPage = () => {
               <span className="text-sm font-bold text-slate-500">Inversión Total</span>
               <span className="text-2xl font-black text-slate-800">Bs. {compraSeleccionada.total.toFixed(2)}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Fecha de Venta */}
+      {ventaParaEditarFecha && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative">
+            <button 
+              onClick={() => setVentaParaEditarFecha(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 transition-colors"
+            >
+              <XCircle size={24} />
+            </button>
+            <h3 className="text-xl font-black text-slate-800 mb-1.5 flex items-center gap-2">
+              <Calendar className="text-kitty-pink" /> Modificar Fecha
+            </h3>
+            <p className="text-xs text-slate-500 mb-4 font-medium">
+              Venta #{ventaParaEditarFecha._id.slice(-6).toUpperCase()} • {ventaParaEditarFecha.cliente?.nombre || 'Venta Rápida'}
+            </p>
+            
+            <form onSubmit={handleGuardarNuevaFecha}>
+              <div className="mb-5">
+                <label className="block text-xs font-bold text-slate-600 mb-1.5">Nueva Fecha y Hora de la Venta:</label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={nuevaFechaVenta}
+                  onChange={(e) => setNuevaFechaVenta(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-pink-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-kitty-pink focus:bg-white"
+                />
+                <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                  💡 Al modificar esta fecha, las estadísticas de ventas en el Dashboard, reportes y finanzas se reubicarán en este nuevo día.
+                </p>
+              </div>
+
+              <div className="flex gap-2.5 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setVentaParaEditarFecha(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-kitty-pink hover:bg-kitty-rose shadow-md transition-colors"
+                >
+                  Guardar Fecha
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

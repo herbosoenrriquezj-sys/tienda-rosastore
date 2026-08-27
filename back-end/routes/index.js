@@ -29,7 +29,7 @@ const models = {
   cuentas: Cuenta
 };
 
-import { registrarVenta, anularVenta, devolverProductoVenta } from '../controllers/ventaController.js';
+import { registrarVenta, anularVenta, devolverProductoVenta, actualizarFechaVenta } from '../controllers/ventaController.js';
 import { registrarCompra, anularCompra } from '../controllers/compraController.js';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
@@ -57,6 +57,7 @@ const upload = multer({ storage: storage });
 router.post('/ventas', registrarVenta);
 router.put('/ventas/:id/anular', anularVenta);
 router.put('/ventas/:id/devolver-producto', devolverProductoVenta);
+router.put('/ventas/:id/fecha', actualizarFechaVenta);
 router.post('/compras', registrarCompra);
 router.put('/compras/:id/anular', anularCompra);
 
