@@ -144,7 +144,7 @@ export const anularVenta = async (req, res) => {
     await devolucionFinanzas.save();
 
     // 3. Cancelar envío logístico si existía
-    await Logistica.findOneAndUpdate(
+    await Logistica.updateMany(
       { venta: venta._id },
       { estadoEntrega: 'Cancelado' }
     );
@@ -176,7 +176,7 @@ export const devolverProductoVenta = async (req, res) => {
     if (itemIndex === -1) return res.status(404).json({ message: 'Producto no encontrado en esta venta' });
 
     const item = venta.productos[itemIndex];
-    const cantidadDisponible = item.cantidad - (item.cantidadDevuelta || 0);
+    const cantidadDisponible = item.cantidad; // Cantidad activa actual
 
     if (cantidadADevolver > cantidadDisponible) {
       return res.status(400).json({ message: `No puedes devolver más de ${cantidadDisponible} unidades de este producto` });
@@ -187,11 +187,21 @@ export const devolverProductoVenta = async (req, res) => {
     item.cantidad -= cantidadADevolver;
     
     const montoADevolver = item.precioUnitario * cantidadADevolver;
-    item.subtotal -= montoADevolver;
+    item.subtotal = Math.max(0, item.subtotal - montoADevolver);
 
     // Actualizar totales de la venta
-    venta.subtotalProductos -= montoADevolver;
-    venta.total -= montoADevolver;
+    venta.subtotalProductos = Math.max(0, venta.subtotalProductos - montoADevolver);
+    venta.total = Math.max(0, venta.total - montoADevolver);
+
+    // Si ya no quedan productos activos con cantidad > 0, anular la venta y cancelar logística
+    const quedanProductos = venta.productos.some(p => p.cantidad > 0);
+    if (!quedanProductos) {
+      venta.estado = 'Anulada';
+      await Logistica.updateMany(
+        { venta: venta._id },
+        { estadoEntrega: 'Cancelado' }
+      );
+    }
 
     await venta.save();
 
@@ -215,7 +225,7 @@ export const devolverProductoVenta = async (req, res) => {
       monto: montoADevolver,
       cuenta: venta.cuentaDestino || 'Caja Tienda',
       categoria: 'Devolución',
-      descripcion: `Devolución parcial de venta: ${venta._id}`,
+      descripcion: `Devolución parcial de venta #${venta._id.toString().slice(-6).toUpperCase()}`,
       referenciaId: venta._id,
       referenciaModelo: 'Venta'
     });

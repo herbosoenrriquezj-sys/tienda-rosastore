@@ -21,3 +21,6 @@ Thumbs.db
 
 # Archivos de subidas (imágenes subidas por usuarios)
 back-end/uploads/
+
+.vercel
+.env*

@@ -56,10 +56,12 @@ const upload = multer({ storage: storage });
 // Rutas personalizadas
 router.post('/ventas', registrarVenta);
 router.put('/ventas/:id/anular', anularVenta);
+router.delete('/ventas/:id', anularVenta);
 router.put('/ventas/:id/devolver-producto', devolverProductoVenta);
 router.put('/ventas/:id/fecha', actualizarFechaVenta);
 router.post('/compras', registrarCompra);
 router.put('/compras/:id/anular', anularCompra);
+router.delete('/compras/:id', anularCompra);
 
 import { getResumenFinanciero } from '../controllers/finanzasController.js';
 router.get('/finanzas/resumen', getResumenFinanciero);
